@@ -1,5 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
+from app.schemas.user import UserRead
 
 
 class LoginRequest(BaseModel):
@@ -18,6 +19,12 @@ class RegisterRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserRead
 
 
 class TokenPayload(BaseModel):

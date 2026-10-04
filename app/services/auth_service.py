@@ -2,7 +2,7 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.core.exceptions import BusinessRuleException, UnauthorizedException, NotFoundException
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import RegisterRequest, LoginRequest, Token
+from app.schemas.auth import RegisterRequest, LoginRequest, AuthResponse
 from app.schemas.user import UserRead
 
 
@@ -10,7 +10,7 @@ class AuthService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
 
-    async def register(self, req: RegisterRequest) -> UserRead:
+    async def register(self, req: RegisterRequest) -> AuthResponse:
         existing_email = await self.user_repo.get_by_email(req.email)
         if existing_email:
             raise BusinessRuleException("User with this email already exists")
@@ -28,15 +28,18 @@ class AuthService:
             role=req.role,
         )
         created_user = await self.user_repo.create(user)
-        return UserRead.model_validate(created_user)
+        token = create_access_token(subject=created_user.id)
+        user_read = UserRead.model_validate(created_user)
+        return AuthResponse(access_token=token, token_type="bearer", user=user_read)
 
-    async def login(self, req: LoginRequest) -> Token:
-        user = await self.user_repo.get_by_email(req.email)
-        if not user or not verify_password(req.password, user.hashed_password):
+    async def login(self, email: str, password: str) -> AuthResponse:
+        user = await self.user_repo.get_by_email(email)
+        if not user or not verify_password(password, user.hashed_password):
             raise UnauthorizedException("Invalid email or password")
 
         token = create_access_token(subject=user.id)
-        return Token(access_token=token)
+        user_read = UserRead.model_validate(user)
+        return AuthResponse(access_token=token, token_type="bearer", user=user_read)
 
     async def get_current_user(self, user_id: int) -> User:
         user = await self.user_repo.get_by_id(user_id)
