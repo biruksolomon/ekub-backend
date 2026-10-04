@@ -1,5 +1,5 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, validator
+from pydantic import validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,7 +17,17 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_DB: str = "ekub_db"
     
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ekub_db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./ekub.db"
+
+    @validator("DATABASE_URL", pre=True, always=True)
+    def assemble_db_connection(cls, v: str) -> str:
+        if isinstance(v, str) and v.strip():
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
+                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return v
+        return "sqlite+aiosqlite:///./ekub.db"
 
     model_config = SettingsConfigDict(
         env_file=".env",
